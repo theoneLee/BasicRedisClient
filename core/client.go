@@ -62,36 +62,45 @@ func (r *Reply) Reply() {
 
 }
 
-func singleResponse(reader *bufio.Reader) (res []byte, err error) {
+func singleResponse(reader *bufio.Reader) ([]byte, error) {
+	var (
+		result []byte
+		err    error
+	)
 	prefix, err := reader.ReadByte()
 	if err != nil {
-		return
+		return []byte{}, err
 	}
 	switch prefix {
 	case byte('+'), byte('-'), byte(':'):
-		res, _, err = reader.ReadLine()
+		result, _, err = reader.ReadLine()
 	case byte('$'):
 		// $7\r\naiangwt\r\n
 		n, _, err := reader.ReadLine()
 		if err != nil {
-			return
+			return []byte{}, err
 		}
 		l, err := strconv.Atoi(string(n))
-		if err != nil {
-			return
+		if err != nil || l <= 0 {
+			return []byte{}, err
 		}
 		p := make([]byte, l+2)
 		reader.Read(p)
-		res = p[0 : len(p)-2]
+		result = p[0 : len(p)-2]
 
 	}
-	return
+
+	return result, err
 }
 
-func multiResponse(reader *bufio.Reader) (res [][]byte, err error) {
+func multiResponse(reader *bufio.Reader) ([][]byte, error) {
+	var (
+		res [][]byte
+		err error
+	)
 	prefix, err := reader.ReadByte()
 	if err != nil {
-		return
+		return res, err
 	}
 	if prefix != byte('*') {
 		return res, errors.New("not multi response")
@@ -99,20 +108,21 @@ func multiResponse(reader *bufio.Reader) (res [][]byte, err error) {
 	//*3\r\n$1\r\n3\r\n$1\r\n2\r\n$1\r\n
 	l, _, err := reader.ReadLine()
 	if err != nil {
-		return
+		return res, err
 	}
 	n, err := strconv.Atoi(string(l))
 	if err != nil {
-		return
+		return res, err
 	}
+	//fmt.Println("mul line:",n)
 	for i := 0; i < n; i++ {
 		s, err := singleResponse(reader)
-		fmt.Println("i =", i, "result = ", string(s))
+		//fmt.Println("i =", i, "result = ", string(s))
 		if err != nil {
-			return
+			return res, err
 		}
 		res = append(res, s)
 	}
 
-	return
+	return res, err
 }
